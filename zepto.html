@@ -10,32 +10,14 @@
 		width: 40%;
 		margin: 5%;
 	}
+
 	table {
-		font-size: 1em;
-		border-collapse: collapse;
-		margin: 0 auto
+		min-width: 100px;
+		border-collapse:collapse;
+		text-align: center;
 	}
-	table, th, td {
-		border: 1px solid #999;
-		padding: 8px 16px;
-		text-align: left;
-	}
-	th {
-		background: #f4f4f4;
-		cursor: pointer;
-	}
-
-	th:hover,
-	th.sorted {
-		background: #d4d4d4;
-	}
-
-	th.sorted.ascending:after {
-		content: "  \2191";
-	}
-
-	th.sorted.descending:after {
-		content: " \2193";
+	th,td {
+		text-align: center;
 	}
 	</style>
 </head>
@@ -48,7 +30,7 @@
 				<th>Name</th>
 				<th>Band</th>
 				<th>Date of Birth</th>
-				<th class="number">Age</th>
+				<th class="sortable number">Age</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -85,7 +67,7 @@
 				<th>Name</th>
 				<th>Band</th>
 				<th>Date of Birth</th>
-				<th class="number">Age</th>
+				<th class="sortable number">Age</th>
 			</tr>
 			<tr>
 				<td>Thom Yorke</td>
@@ -117,16 +99,16 @@
 
 <div class="example ex-2"></div>
 
-<script src="http://f.cl.ly/items/2Q3A1w0X3p0q2N2f103B/zepto.js"></script>
-<script src="jquery.tablesort.js"></script>
+<script src="zepto.js"></script>
+<script src="jquery.tablesort.min.js"></script>
 <script type="text/javascript">
 
 	$(function() {
 
 		var table = $('<table></table>');
-		table.append('<thead><tr><th class="number">Number</th></tr></thead>');
+		table.append('<thead><tr><th class="sortable number">Number</th></tr></thead>');
 		var tbody = $('<tbody></tbody>');
-		for(var i = 0; i<100; i++) {
+		for(var i = 0; i<2500; i++) {
 			tbody.append('<tr><td>' + Math.floor(Math.random() * 100) + '</td></tr>');
 		}
 		table.append(tbody);
@@ -135,7 +117,7 @@
 		$('table').tablesort().data('tablesort');
 
 		$('thead th.number').data('sortBy', function(th, td, sorter) {
-			return parseInt(td.text(), 10);
+			return parseFloat(td.text(), 10);
 		});
 
 	});

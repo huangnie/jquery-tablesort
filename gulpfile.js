@@ -3,7 +3,7 @@ var uglify = require("gulp-uglify");
 var rename = require('gulp-rename');
 
 
-gulp.task('min', function() {
+gulp.task('default', function() {
   gulp.src('jquery.tablesort.js')
     .pipe(uglify({preserveComments: 'license'}))
     .pipe(rename('jquery.tablesort.min.js'))

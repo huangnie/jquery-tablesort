@@ -1,29 +1,87 @@
 /*
 	A simple, lightweight jQuery plugin for creating sortable tables.
 	https://github.com/kylefox/jquery-tablesort
-	Version 0.0.11
+	Version 0.0.12
 */
 
 (function($) {
+
+	function loadCssCode(code){
+		var style = document.createElement('style');
+		    style.type = 'text/css';
+		    style.rel = 'stylesheet';
+	    try{
+	        //for Chrome Firefox Opera Safari
+	        style .appendChild(document.createTextNode(code));
+	    } catch(ex) {
+	        //for IE
+	        style.styleSheet.cssText = code;
+	    }
+	    var head = document.getElementsByTagName('head')[0];
+	    head.appendChild(style);
+	}
+
+	loadCssCode([
+		'th,td{border:1px solid #999;padding:5px 2px;}th{cursor: default;}',
+		'th.sortable:after{content:" \\2193\\2191";}',
+		'th.sortable.asc:after{content:" \\2191";}',
+		'th.sortable.desc:after{content:" \\2193";}',
+	].join(''));
+
 	$.tablesort = function ($table, settings) {
 		var self = this;
 		this.$table = $table;
 		this.$thead = this.$table.find('thead');
 		this.settings = $.extend({}, $.tablesort.defaults, settings);
-		this.$sortCells = this.$thead.length > 0 ? this.$thead.find('th:not(.no-sort)') : this.$table.find('th:not(.no-sort)');
+		this.$sortCells = this.$thead.length > 0 ? this.$thead.find('th.sortable') : this.$table.find('th.sortable');
 		this.$sortCells.on('click.tablesort', function() {
-			self.sort($(this));
+			if (self.$sorting) {
+				return false
+			} else {
+				self.$sorting = 1
+				// must make a dlay，or the tablesort:start event will delay
+				var start = new Date()
+				var curTh = $(this)
+
+				curTh.css('transform', 'scale(0.95)');
+
+				// `tablesort:start` callback. Also avoids locking up the browser too much.
+				self.$table.trigger('tablesort:start', [self]);
+				// click on a different column
+				if (self.index !== curTh.index()) {
+					self.direction = 'asc';
+					self.index = curTh.index();
+				} else {
+					self.direction = self.direction === 'asc' ? 'desc' : 'asc';
+				}
+
+				self.$sortCells.removeClass('asc desc');
+
+				curTh.addClass(self.direction);
+
+				// Try to force a browser redraw
+				self.$table.css("display");
+
+				setTimeout(function() {
+					curTh.css('transform', 'scale(1)');
+					self.sort(curTh);
+					self.log('Sort finished in ' + ((new Date()).getTime() - start.getTime()) + 'ms');
+					self.$table.trigger('tablesort:complete', [self]);
+					self.$sorting = 0
+				}, 100)
+			}
 		});
-		this.index = null;
 		this.$th = null;
+		this.index = null;
 		this.direction = null;
+		this.$sorting = 0;
 	};
 
 	$.tablesort.prototype = {
 
 		sort: function(th, direction) {
-			var start = new Date(),
-				self = this,
+
+			var self = this,
 				table = this.$table,
 				rowsContainer = table.find('tbody').length > 0 ? table.find('tbody') : table,
 				rows = rowsContainer.find('tr').has('td, th'),
@@ -32,58 +90,41 @@
 				sortedMap = [];
 
 			var unsortedValues = cells.map(function(idx, cell) {
-				if (sortBy)
+				if (sortBy) {
 					return (typeof sortBy === 'function') ? sortBy($(th), $(cell), self) : sortBy;
-				return ($(this).data().sortValue != null ? $(this).data().sortValue : $(this).text());
-			});
-			if (unsortedValues.length === 0) return;
-
-			//click on a different column
-			if (this.index !== th.index()) {
-				this.direction = 'asc';
-				this.index = th.index();
-			}
-			else if (direction !== 'asc' && direction !== 'desc')
-				this.direction = this.direction === 'asc' ? 'desc' : 'asc';
-			else
-				this.direction = direction;
-
-			direction = this.direction == 'asc' ? 1 : -1;
-
-			self.$table.trigger('tablesort:start', [self]);
-			self.log("Sorting by " + this.index + ' ' + this.direction);
-
-			// Try to force a browser redraw
-			self.$table.css("display");
-			// Run sorting asynchronously on a timeout to force browser redraw after
-			// `tablesort:start` callback. Also avoids locking up the browser too much.
-			setTimeout(function() {
-				self.$sortCells.removeClass(self.settings.asc + ' ' + self.settings.desc);
-				for (var i = 0, length = unsortedValues.length; i < length; i++)
-				{
-					sortedMap.push({
-						index: i,
-						cell: cells[i],
-						row: rows[i],
-						value: unsortedValues[i]
-					});
+				} else {
+					var value = ($(this).data().sortValue != null ? $(this).data().sortValue : $(this).text());
+					if (th.hasClass('number')) {
+						return parseFloat(value, 10);
+					} else {
+						return value;
+					}
 				}
+			});
 
-				sortedMap.sort(function(a, b) {
-					return self.settings.compare(a.value, b.value) * direction;
+			if (unsortedValues.length === 0) {
+				return false;
+			}
+
+			self.log("Sorting by " + this.index + ' ' + this.direction);
+			direction = this.direction == 'asc' ? 1 : -1;
+			for (var i = 0, length = unsortedValues.length; i < length; i++) {
+				sortedMap.push({
+					index: i,
+					cell: cells[i],
+					row: rows[i],
+					value: unsortedValues[i]
 				});
+			}
 
-				$.each(sortedMap, function(i, entry) {
-					rowsContainer.append(entry.row);
-				});
+			// Run sorting asynchronously on a timeout to force browser redraw after
+			sortedMap.sort(function(a, b) {
+				return self.settings.compare(a.value, b.value) * direction;
+			});
 
-				th.addClass(self.settings[self.direction]);
-
-				self.log('Sort finished in ' + ((new Date()).getTime() - start.getTime()) + 'ms');
-				self.$table.trigger('tablesort:complete', [self]);
-				//Try to force a browser redraw
-				self.$table.css("display");
-			}, unsortedValues.length > 2000 ? 200 : 10);
+			$.each(sortedMap, function(i, entry) {
+				rowsContainer.append(entry.row);
+			});
 		},
 
 		log: function(msg) {
@@ -97,15 +138,12 @@
 			this.$table.data('tablesort', null);
 			return null;
 		}
-
 	};
 
 	$.tablesort.DEBUG = false;
 
 	$.tablesort.defaults = {
 		debug: $.tablesort.DEBUG,
-		asc: 'sorted ascending',
-		desc: 'sorted descending',
 		compare: function(a, b) {
 			if (a > b) {
 				return 1;
